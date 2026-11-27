@@ -86,7 +86,7 @@
         return;
       }
       const liked = await getLiked();
-      for (const p of posts) list.appendChild(renderPost(p, liked));
+      for (const p of posts) list.appendChild(renderPost(p, liked, me));
     }
     load();
   </script>

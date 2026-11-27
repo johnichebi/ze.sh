@@ -31,6 +31,20 @@ def user_posts(username: str):
     """
     return execute_query(query, {"username": username}).mappings().all()
 
+@router.get("/search")
+def search_users(q: str = ""):
+    q = q.strip().lstrip("@")
+    if not q:
+        return []
+    safe = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    query = """SELECT user_name, display_name, pfp_url
+    FROM users
+    WHERE user_name ILIKE :contains OR display_name ILIKE :contains
+    ORDER BY (user_name ILIKE :prefix) DESC, user_name
+    LIMIT 20
+    """
+    return execute_query(query, {"contains": "%" + safe + "%", "prefix": safe + "%"}).mappings().all()
+
 @router.post("/register")
 async def register(
     user_name=Form(...),

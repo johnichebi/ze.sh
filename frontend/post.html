@@ -16,9 +16,8 @@
 					  </form>
 					    <p id="message"></p>
 					      <div id="comments"></div>
-
+						<script src="/app.js"></script>
 					        <script>
-							    const token = localStorage.getItem("token");
 							    if (!token) window.location.href = "/login.html";
 
 							    const postId = new URLSearchParams(window.location.search).get("id");
@@ -35,6 +34,7 @@
 															        }
 
 							    async function loadPost() {
+															    const me = await getMe();
 															          const box = document.getElementById("post");
 															          const res = await fetch("/posts/" + encodeURIComponent(postId));
 															          if (!res.ok) {
@@ -73,7 +73,17 @@
 																								          likeBtn.textContent = "♥ " + p.like_count;
 																								        });
 
-															          box.append(name, content, ...media, likeBtn);
+			box.append(name, content, ...media, likeBtn);
+if (me && me.user_id === p.user_id) {
+  const del = document.createElement("button");
+  del.textContent = "Delete post";
+  del.addEventListener("click", async () => {
+    if (!confirm("Delete this post?")) return;
+    const r = await api("/posts/" + encodeURIComponent(p.post_id), { method: "DELETE" });
+    if (r.ok) window.location.href = "/index.html";
+  });
+  box.append(" ", del);
+}
 															        }
 
 							    async function loadComments() {

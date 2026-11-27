@@ -11,11 +11,11 @@ async function api(path, options = {}) {
   return res;
 }
 
-async function getMe() {
-  const res = await api("/account/me");
-  return res.ok ? res.json() : null;
+let mePromise;
+function getMe() {
+  if (!mePromise) mePromise = api("/account/me").then((r) => (r.ok ? r.json() : null));
+  return mePromise;
 }
-
 async function getLiked() {
   const res = await api("/likes/me");
   return new Set(res.ok ? await res.json() : []);
@@ -35,14 +35,14 @@ async function renderNav() {
 
   const search = document.createElement("form");
   const input = document.createElement("input");
-  input.placeholder = "Go to username";
+  input.placeholder = "Search users";
   const go = document.createElement("button");
   go.textContent = "Go";
   search.append(input, go);
   search.addEventListener("submit", (e) => {
     e.preventDefault();
-    const u = input.value.trim().replace(/^@/, "");
-    if (u) window.location.href = "/profile.html?u=" + encodeURIComponent(u);
+    const q = input.value.trim();
+    if (q) window.location.href = "/search.html?q=" + encodeURIComponent(q);
   });
 
   const logout = document.createElement("button");
@@ -56,7 +56,7 @@ async function renderNav() {
   document.body.prepend(nav);
 }
 
-function renderPost(p, liked) {
+function renderPost(p, liked, me) {
   const div = document.createElement("div");
 
   const name = document.createElement("a");
@@ -105,7 +105,20 @@ function renderPost(p, liked) {
   const when = document.createElement("small");
   when.textContent = " " + new Date(p.created_at).toLocaleString();
 
-  div.append(name, content, ...media, likeBtn, when, document.createElement("hr"));
+div.append(name, content, ...media, likeBtn, when);
+
+if (me && me.user_id === p.user_id) {
+  const del = document.createElement("button");
+  del.textContent = "Delete";
+  del.addEventListener("click", async () => {
+    if (!confirm("Delete this post?")) return;
+    const r = await api("/posts/" + encodeURIComponent(p.post_id), { method: "DELETE" });
+    if (r.ok) div.remove();
+  });
+  div.append(" ", del);
+}
+
+div.append(document.createElement("hr"));
   return div;
 }
 
