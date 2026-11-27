@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+g!DOCTYPE html>
 <html>
 	<head>
 		  <meta charset="UTF-8">
@@ -23,9 +23,17 @@
 							    const postId = new URLSearchParams(window.location.search).get("id");
 							    if (!postId) window.location.href = "/index.html";
 
+							    async function api(path, options = {}) {
+															          const headers = { ...(options.headers || {}), Authorization: "Bearer " + token };
+															          const res = await fetch(path, { ...options, headers });
+															          if (res.status === 401) {
+																								          localStorage.removeItem("token");
+																								          window.location.href = "/login.html";
+																								        }
+															          return res;
+															        }
 
 							    async function loadPost() {
-															    const me = await getMe();
 															          const box = document.getElementById("post");
 															          const res = await fetch("/posts/" + encodeURIComponent(postId));
 															          if (!res.ok) {
@@ -37,6 +45,10 @@
 															          const name = document.createElement("strong");
 															          name.textContent = "@" + p.user_name;
 
+                                        const header = document.createElement("div");
+                                        header.className = "post-header";
+                                        header.append(makeAvatar(p.pfp_url, p.user_name), name);
+
 															          const content = document.createElement("p");
 															          content.textContent = p.content;
 
@@ -46,7 +58,6 @@
 																								          const el = document.createElement(isVideo ? "video" : "img");
 																								          el.src = url;
 																								          if (isVideo) el.controls = true;
-																								          el.style.maxWidth = "300px";
 																								          media.push(el);
 																								        }
 
@@ -64,20 +75,11 @@
 																								          likeBtn.textContent = "♥ " + p.like_count;
 																								        });
 
-			box.append(name, content, ...media, likeBtn);
-if (me && me.user_id === p.user_id) {
-  const del = document.createElement("button");
-  del.textContent = "Delete post";
-  del.addEventListener("click", async () => {
-    if (!confirm("Delete this post?")) return;
-    const r = await api("/posts/" + encodeURIComponent(p.post_id), { method: "DELETE" });
-    if (r.ok) window.location.href = "/index.html";
-  });
-  box.append(" ", del);
-}
+															          box.append(header, content, ...media, likeBtn);
 															        }
 
 							    async function loadComments() {
+                                        const me = await getMe();
 															          const list = document.getElementById("comments");
 															          list.textContent = "";
 															          const res = await fetch("/posts/" + encodeURIComponent(postId) + "/comments");
@@ -85,18 +87,41 @@ if (me && me.user_id === p.user_id) {
 															          if (!Array.isArray(comments) || comments.length === 0) {
 																								          list.textContent = "No comments yet.";
 																								          return;
-																								        }
-															          for (const c of comments) {
-																								          const div = document.createElement("div");
-																								          const name = document.createElement("strong");
-																								          name.textContent = "@" + c.user_name;
-																								          const text = document.createElement("p");
-																								          text.textContent = c.content;
-																								          const when = document.createElement("small");
-																								          when.textContent = new Date(c.created_at).toLocaleString();
-																								          div.append(name, text, when, document.createElement("hr"));
-																								          list.appendChild(div);
-																								        }
+																								        
+                                        }
+                                        for (const c of comments) {
+                                            const div = document.createElement("div");
+                                            div.className = "comment";
+
+                                            const name = document.createElement("strong");
+                                            name.textContent = "@" + c.user_name;
+
+                                            const header = document.createElement("div");
+                                            header.className = "post-header";
+                                            header.append(makeAvatar(c.pfp_url, c.user_name), name);
+
+                                            const text = document.createElement("p");
+                                                    text.textContent = c.content;
+
+  const when = document.createElement("small");
+  when.className = "post-time";
+  when.textContent = new Date(c.created_at).toLocaleString();
+
+  div.append(header, text, when);
+
+  if (me && me.user_id === c.user_id) {
+    const del = document.createElement("button");
+    del.className = "delete-btn";
+    del.textContent = "Delete";
+    del.addEventListener("click", async () => {
+      const r = await api("/comments/" + encodeURIComponent(c.comment_id), { method: "DELETE" });
+      if (r.ok) loadComments();
+    });
+    div.append(" ", del);
+  }
+
+  list.appendChild(div);
+}
 															        }
 
 							    document.getElementById("comment-form").addEventListener("submit", async (e) => {

@@ -19,7 +19,7 @@ async def me(current_user = Depends(get_current_user)):
 @router.get("/profile/{username}/posts")
 def user_posts(username: str):
     query = """SELECT
-    posts.post_id, posts.user_id, users.user_name, posts.content, posts.created_at,
+    posts.post_id, posts.user_id, users.user_name, users.pfp_url, posts.content, posts.created_at,
     (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.post_id) AS like_count,
     COALESCE((SELECT json_agg(media_url) FROM post_media
               WHERE post_media.post_id = posts.post_id), '[]'::json) AS media_urls

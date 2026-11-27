@@ -24,12 +24,9 @@
       }
       const u = await res.json();
 
-      if (u.pfp_url) {
-        const img = document.createElement("img");
-        img.src = u.pfp_url;
-        img.width = 80;
-        box.appendChild(img);
-      }
+	const av = makeAvatar(u.pfp_url, u.user_name);
+	av.classList.add("profile-avatar");
+	box.appendChild(av);       	
 
       const display = document.createElement("h1");
       display.textContent = u.display_name || u.user_name;

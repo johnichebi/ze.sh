@@ -71,6 +71,7 @@ def get_comment(comment_id):
     query="""SELECT 
             comments.comment_id, 
             user_name, 
+            users.pfp_url,
             content, 
             comments.user_id, 
             COUNT(comment_likes.user_id) as like_count 
@@ -78,7 +79,7 @@ def get_comment(comment_id):
             JOIN users ON comments.user_id = users.user_id 
             LEFT JOIN comment_likes ON comments.comment_id = comment_likes.comment_id 
             WHERE comments.comment_id = :comment_id
-            GROUP BY comments.comment_id, users.user_id, comments.content, comments.user_id
+            GROUP BY comments.comment_id, users.user_id, users.pfp_url, comments.content, comments.user_id
             """
     result = execute_query(query, {"comment_id": comment_id}).mappings().first()
     if result:

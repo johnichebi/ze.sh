@@ -11,6 +11,20 @@ async function api(path, options = {}) {
   return res;
 }
 
+function makeAvatar(url, name) {
+  if (url) {
+    const img = document.createElement("img");
+    img.className = "avatar";
+    img.src = url;
+    img.alt = "";
+    return img;
+  }
+  const ph = document.createElement("span");
+  ph.className = "avatar avatar-empty";
+  ph.textContent = ((name || "?")[0] || "?").toUpperCase();
+  return ph;
+}
+
 let mePromise;
 function getMe() {
   if (!mePromise) mePromise = api("/account/me").then((r) => (r.ok ? r.json() : null));
@@ -29,20 +43,22 @@ async function renderNav() {
   home.href = "/index.html";
   home.textContent = "Home";
 
-  const profile = document.createElement("a");
-  profile.href = "/profile.html" + (me ? "?u=" + encodeURIComponent(me.user_name) : "");
-  profile.textContent = "Profile";
+	const profile = document.createElement("a");
+	profile.className = "nav-profile";
+	profile.title = "Profile";
+	profile.href = "/profile.html" + (me ? "?u=" + encodeURIComponent(me.user_name) : "");
+	profile.appendChild(me ? makeAvatar(me.pfp_url, me.user_name) : document.createTextNode("Profile"));
 
   const search = document.createElement("form");
   const input = document.createElement("input");
-  input.placeholder = "Search users";
+  input.placeholder = "Go to username";
   const go = document.createElement("button");
   go.textContent = "Go";
   search.append(input, go);
   search.addEventListener("submit", (e) => {
     e.preventDefault();
-    const q = input.value.trim();
-    if (q) window.location.href = "/search.html?q=" + encodeURIComponent(q);
+    const u = input.value.trim().replace(/^@/, "");
+    if (u) window.location.href = "/profile.html?u=" + encodeURIComponent(u);
   });
 
   const logout = document.createElement("button");
@@ -58,10 +74,15 @@ async function renderNav() {
 
 function renderPost(p, liked, me) {
   const div = document.createElement("div");
+  div.className = "post";
 
   const name = document.createElement("a");
   name.href = "/profile.html?u=" + encodeURIComponent(p.user_name);
   name.textContent = "@" + p.user_name;
+
+	const header = document.createElement("div");
+	header.className = "post-header";
+	header.append(makeAvatar(p.pfp_url, p.user_name), name);
 
   const content = document.createElement("p");
   const link = document.createElement("a");
@@ -75,11 +96,11 @@ function renderPost(p, liked, me) {
     const el = document.createElement(isVideo ? "video" : "img");
     el.src = url;
     if (isVideo) el.controls = true;
-    el.style.maxWidth = "300px";
     media.push(el);
   }
 
   const likeBtn = document.createElement("button");
+	likeBtn.className = "like-btn";
   const paint = () => {
     likeBtn.textContent = (liked.has(p.post_id) ? "♥ " : "♡ ") + p.like_count;
   };
@@ -103,12 +124,14 @@ function renderPost(p, liked, me) {
   });
 
   const when = document.createElement("small");
+	when.className = "post-time";
   when.textContent = " " + new Date(p.created_at).toLocaleString();
 
-div.append(name, content, ...media, likeBtn, when);
+div.append(header, content, ...media, likeBtn, when);
 
 if (me && me.user_id === p.user_id) {
   const del = document.createElement("button");
+	del.className = "delete-btn";
   del.textContent = "Delete";
   del.addEventListener("click", async () => {
     if (!confirm("Delete this post?")) return;
@@ -118,8 +141,5 @@ if (me && me.user_id === p.user_id) {
   div.append(" ", del);
 }
 
-div.append(document.createElement("hr"));
-  return div;
-}
 
 document.addEventListener("DOMContentLoaded", renderNav);
