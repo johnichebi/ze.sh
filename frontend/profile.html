@@ -1,0 +1,94 @@
+<!DOCTYPEhtml>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profile - ze.sh</title>
+</head>
+<body>
+  <div id="profile"></div>
+  <h2>Posts</h2>
+  <div id="posts"></div>
+
+  <script src="/app.js"></script>
+  <script>
+    async function load() {
+      const me = await getMe();
+      const username = new URLSearchParams(location.search).get("u") || (me && me.user_name);
+      const box = document.getElementById("profile");
+
+      const res = await fetch("/account/profile/" + encodeURIComponent(username));
+      if (!res.ok) {
+        box.textContent = "User not found.";
+        return;
+      }
+      const u = await res.json();
+
+      if (u.pfp_url) {
+        const img = document.createElement("img");
+        img.src = u.pfp_url;
+        img.width = 80;
+        box.appendChild(img);
+      }
+
+      const display = document.createElement("h1");
+      display.textContent = u.display_name || u.user_name;
+      const handle = document.createElement("p");
+      handle.textContent = "@" + u.user_name;
+      const bio = document.createElement("p");
+      bio.textContent = u.bio || "";
+      const counts = document.createElement("p");
+      const paintCounts = () => {
+        counts.textContent = u.followers + " followers · " + u.following + " following";
+      };
+      paintCounts();
+      box.append(display, handle, bio, counts);
+
+      if (me && me.user_id === u.user_id) {
+        const edit = document.createElement("a");
+        edit.href = "/edit-profile.html";
+        edit.textContent = "Edit profile";
+        box.appendChild(edit);
+      } else {
+        const fr = await api("/follows/me");
+        const following = new Set(fr.ok ? await fr.json() : []);
+        const btn = document.createElement("button");
+        const paint = () => {
+          btn.textContent = following.has(u.user_id) ? "Unfollow" : "Follow";
+        };
+        paint();
+        btn.addEventListener("click", async () => {
+          const r = await api("/follow", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ following_user_id: u.user_id })
+          });
+          if (!r.ok) return;
+          const data = await r.json();
+          if (data.message === "Followed") {
+            following.add(u.user_id);
+            u.followers += 1;
+          } else {
+            following.delete(u.user_id);
+            u.followers -= 1;
+          }
+          paint();
+          paintCounts();
+        });
+        box.appendChild(btn);
+      }
+
+      const list = document.getElementById("posts");
+      const pr = await fetch("/account/profile/" + encodeURIComponent(username) + "/posts");
+      const posts = await pr.json();
+      if (!Array.isArray(posts) || posts.length === 0) {
+        list.textContent = "No posts yet.";
+        return;
+      }
+      const liked = await getLiked();
+      for (const p of posts) list.appendChild(renderPost(p, liked));
+    }
+    load();
+  </script>
+</body>
+</html> 

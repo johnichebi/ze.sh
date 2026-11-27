@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="wdth=device-width, initial-scale=1">
+  <title>Register - ze.sh</title>
+</head>
+<body>
+  <h1>Create account</h1>
+  <form id="register-form" method="post" action="#">
+    <input type="text" name="user_name" placeholder="Username" required>
+    <input type="text" name="display_name" placeholder="Display name" required>
+    <input type="password" name="password" placeholder="Password" required>
+    <button type="submit">Register</button>
+  </form>
+  <p id="message"></p>
+  <p>Already have an account? <a href="/login.html">Log in</a></p>
+
+  <script>
+    const form = document.getElementById("register-form");
+    const message = document.getElementById("message");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      message.textContent = "";
+
+      const res = await fetch("/account/register", {
+        method: "POST",
+        body: new FormData(form)
+      });
+
+      if (res.ok) {
+        window.location.href = "/login.html";
+      } else {
+        message.textContent = "Registration failed (username may be taken).";
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edit profile - ze.sh</title>
+</head>
+<body>
+  <h1>Edit profile</h1>
+  <form id="edit-form">
+    <input type="text" name="display_name" placeholder="Display name"><br>
+    <textarea name="bio" placeholder="Bio"></textarea><br>
+    <label>Profile picture: <input type="file" id="file" accept="image/*"></label><br>
+    <button type="submit">Save</button>
+  </form>
+  <p id="message"></p>
+
+  <script src="/app.js"></script>
+  <script>
+    const form = document.getElementById("edit-form");
+    const message = document.getElementById("message");
+
+    getMe().then((me) => {
+      if (!me) return;
+      form.display_name.value = me.display_name || "";
+      form.bio.value = me.bio || "";
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      message.textContent = "Saving...";
+      const body = new FormData();
+      body.append("display_name", form.display_name.value);
+      body.append("bio", form.bio.value);
+      const file = document.getElementById("file").files[0];
+      if (file) body.append("file", file);
+
+      const res = await api("/account/profile", { method: "PATCH", body });
+      if (res.ok) {
+        window.location.href = "/profile.html";
+      } else {
+        message.textContent = "Couldn't save (" + res.status + ").";
+      }
+    });
+  </script>
+</body>
+</html>
