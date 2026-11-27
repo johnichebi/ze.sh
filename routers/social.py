@@ -120,4 +120,11 @@ def my_likes(current_user=Depends(get_current_user)):
         "SELECT post_id FROM likes WHERE user_id = :user_id",
         {"user_id": current_user["user_id"]}
         ).mappings().all()
-    return [r["post_id"] for r in rows]
+
+@router.get("/follows/me")
+def my_follows(current_user=Depends(get_current_user)):
+    rows = execute_query(
+        "SELECT following_user_id FROM follows WHERE follower_user_id = :user_id",
+        {"user_id": current_user["user_id"]}
+    ).mappings().all()
+    return [r["following_user_id"] for r in rows]
