@@ -57,7 +57,7 @@ def make_comment(comment:CreateComment, current_user=Depends(get_current_user)):
 
 @router.post("/like_comment")
 def like_comment(comment:LikeComment, current_user=Depends(get_current_user)):
-    query="INSERT INTO comment_likes (user_id, comment_id) VALUES ((SELECT user_id FROM users WHERE user_name=:user_name), :comment_id) ON CONFLICT (user_id, comment_id) DO NOTHING RETURNING *"
+    query="INSERT INTO comment_likes (user_id, comment_id) VALUES ((SELECT user_id FROM users WHERE user_id=:user_id), :comment_id) ON CONFLICT (user_id, comment_id) DO NOTHING RETURNING *"
     result = execute_query(query, {"user_id":current_user["user_id"], "comment_id":comment.comment_id}).mappings().first()
     if result:
         return {"message": "Comment liked"}

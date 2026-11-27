@@ -33,4 +33,3 @@ class CreateComment(BaseModel):
 
 class LikeComment(BaseModel):
     comment_id: str
-    user_id: str

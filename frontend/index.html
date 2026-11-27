@@ -7,12 +7,11 @@
 </head>
 <body>
   <h1>ze.sh</h1>
-  <button id="logout">Log out</button>
 
   <h2>New post</h2>
   <form id="post-form">
     <textarea name="content" placeholder="What's happening?" required></textarea><br>
-    <input type="file" id="files" accept="image/*,video/*" multiple>
+    <input type="file" id="files" accept="image/*video/*" multiple>
     <button type="submit">Post</button>
   </form>
   <p id="message"></p>
@@ -20,63 +19,45 @@
   <h2>Feed</h2>
   <div id="feed"></div>
 
+  <script src="/app.js"></script>
   <script>
-    const token = localStorage.getItem("token");
-    if (!token) window.location.href = "/login.html";
+    async function loadFeed() {
+      const feed = document.getElementById("feed");
+      feed.textContent = "";
+      const res = await fetch("/posts/feed");
+      const posts = await res.json();
 
-    async function api(path, options = {}) {
-      const headers = { ...(options.headers || {}), Authorization: "Bearer " + token };
-      const res = await fetch(path, { ...options, headers });
-      if (res.status === 401) {
-        localStorage.removeItem("token");
-        window.location.href = "/login.html";
+      if (!Array.isArray(posts)) {
+        feed.textContent = "No posts yet.";
+        return;
       }
-      return res;
+
+      const liked = await getLiked();
+      const me = await getMe();
+      for (const p of posts) feed.appendChild(renderPost(p, liked, me));
     }
 
-async function loadFeed() {
-    const feed = document.getElementById("feed");
-    feed.textContent = "";
-    const res = await fetch("/posts/feed");
-    const posts = await res.json();
+    document.getElementById("post-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const message = document.getElementById("message");
+      message.textContent = "";
 
-    if (!Array.isArray(posts)) {
-      feed.textContent = "No posts yet.";
-      return;
-    }
+      const form = new FormData();
+      form.append("content", e.target.content.value);
+      for (const f of document.getElementById("files").files) {
+        form.append("files", f);
+      }
 
-    const liked = await getLiked();
-    const me = await getMe();
-    for (const p of posts) fed.appendChild(renderPost(p, liked, me));
-  }
+      const res = await api("/posts", { method: "POST", body: form });
+      if (res.ok) {
+        e.target.reset();
+        loadFeed();
+      } else {
+        message.textContent = "Couldn't post.";
+      }
+    });
 
-  document.getElementById("post-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const message = document.getElementById("message");
-    message.textContent = "";
-
-    const form = new FormData();
-    form.append("content", e.target.content.value);
-    for (const f of document.getElementById("files").files) {
-      form.append("files", f);
-    }
-
-    const res = await api("/posts", { method: "POST", body: form });
-    if (res.ok) {
-      e.target.reset();
-      loadFeed();
-    } else {
-      message.textContent = "Couldn't post.";
-    }
-  });
-
-  loadFeed();
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ze.sh</title>
-</head>
-<body>
-  <h1>ze.sh</h1>
+    loadFeed();
+  </script>
+</body>
+</html>
