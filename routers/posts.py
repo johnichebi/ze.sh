@@ -46,8 +46,10 @@ async def create_post(current_user=Depends(get_current_user), files: Annotated[l
 
         if not media_query:
             raise HTTPException(500, detail="Unable to upload media.")
+    result = dict(result)
     result["media_urls"]=urls
-    return dict(result)
+    return result
+
 
 @router.get("/posts/feed")
 def fetch_feed():
@@ -55,13 +57,16 @@ def fetch_feed():
     posts.user_id, 
     posts.post_id,
     users.user_name,
+    users.pfp_url,
     posts.content,
     posts.created_at,
-    COUNT(likes.user_id) AS like_count 
+    COUNT(likes.user_id) AS like_count,
+    COALESCE((SELECT json_agg(media_url) FROM post_media
+                  WHERE post_media.post_id = posts.post_id), '[]'::json) AS media_urls
     FROM posts
     JOIN users ON users.user_id = posts.user_id
     LEFT JOIN likes ON likes.post_id = posts.post_id
-    GROUP BY posts.post_id, posts.user_id, users.user_name, posts.content
+    GROUP BY posts.post_id, posts.user_id, users.user_name, users.pfp_url, posts.content
     ORDER BY created_at DESC
     LIMIT 20
     """
@@ -75,10 +80,13 @@ def fetch_feed():
 def get_post(post_id):
     query="""SELECT 
     posts.post_id, 
-    user_name, 
+    user_name,
+    users.pfp_url,
     content, 
     posts.user_id, 
-    COUNT(likes.user_id) as like_count 
+    COUNT(likes.user_id) as like_count,
+    COALESCE((SELECT json_agg(media_url) FROM post_media
+                  WHERE post_media.post_id = posts.post_id), '[]'::json) AS media_urls
     FROM posts 
     JOIN users ON posts.user_id = users.user_id 
     LEFT JOIN likes ON posts.post_id = likes.post_id 

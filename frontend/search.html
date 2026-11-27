@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Search - ze.sh</title>
+</head>
+<body>
+  <h1 id="title">Search</h1>
+  <div id="results"></div>
+
+  <script src="/app.js"></script>
+  <script>
+    async function load() {
+      const q = new URLSearchParams(location.search).get("q") || "";
+      document.getElementById("title").textContent = q ? 'Results for "' + q + '"' : "Search";
+      const box = document.getElementById("results");
+      if (!q) {
+        box.textContent = "Type a name in the search box.";
+        return;
+      }
+      const res = await api("/account/search?q=" + encodeURIComponent(q));
+      const users = res.ok ? await res.json() : [];
+      if (users.length === 0) {
+        box.textContent = "No users found.";
+        return;
+      }
+      for (const u of users) {
+        const row = document.createElement("div");
+        if (u.pfp_url) {
+          const img = document.createElement("img");
+          img.src = u.pfp_url;
+          img.width = 40;
+          row.appendChild(img);
+        }
+        const link = document.createElement("a");
+        link.href = "/profile.html?u=" + encodeURIComponent(u.user_name);
+        link.textContent = (u.display_name || u.user_name) + " (@" + u.user_name + ")";
+        row.appendChild(link);
+        box.appendChild(row);
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

@@ -36,7 +36,7 @@ def make_comment(comment:CreateComment, current_user=Depends(get_current_user)):
                 post_id,
                 content)
                 VALUES (
-                    (SELECT user_id FROM users WHERE user_name=:username),
+                    (SELECT user_id FROM users WHERE user_name=:user_name),
                     :comment_id,
                     :post_id,
                     :content)
@@ -45,7 +45,7 @@ def make_comment(comment:CreateComment, current_user=Depends(get_current_user)):
     result = execute_query(
             query,
             {
-                "username": current_user["username"],
+                "user_name": current_user["user_name"],
                 "comment_id": str(uuid4()),
                 "post_id": comment.post_id,
                 "content":comment.content
@@ -57,8 +57,8 @@ def make_comment(comment:CreateComment, current_user=Depends(get_current_user)):
 
 @router.post("/like_comment")
 def like_comment(comment:LikeComment, current_user=Depends(get_current_user)):
-    query="INSERT INTO comment_likes (user_id, comment_id) VALUES ((SELECT user_id FROM users WHERE user_name=:user_name), :comment_id) ON CONFLICT (user_id, comment_id) DO NOTHING RETURNING *"
-    result = execute_query(query, {"user_name":current_user["user_name"], "comment_id":comment.comment_id}).mappings().first()
+    query="INSERT INTO comment_likes (user_id, comment_id) VALUES ((SELECT user_id FROM users WHERE user_id=:user_id), :comment_id) ON CONFLICT (user_id, comment_id) DO NOTHING RETURNING *"
+    result = execute_query(query, {"user_id":current_user["user_id"], "comment_id":comment.comment_id}).mappings().first()
     if result:
         return {"message": "Comment liked"}
     deleted = execute_query("DELETE FROM comment_likes WHERE user_id = :user_id AND comment_id = :comment_id", {"user_id":comment.user_id, "comment_id":comment.comment_id})
@@ -71,6 +71,7 @@ def get_comment(comment_id):
     query="""SELECT 
             comments.comment_id, 
             user_name, 
+            users.pfp_url,
             content, 
             comments.user_id, 
             COUNT(comment_likes.user_id) as like_count 
@@ -78,7 +79,7 @@ def get_comment(comment_id):
             JOIN users ON comments.user_id = users.user_id 
             LEFT JOIN comment_likes ON comments.comment_id = comment_likes.comment_id 
             WHERE comments.comment_id = :comment_id
-            GROUP BY comments.comment_id, users.user_id, comments.content, comments.user_id
+            GROUP BY comments.comment_id, users.user_id, users.pfp_url, comments.content, comments.user_id
             """
     result = execute_query(query, {"comment_id": comment_id}).mappings().first()
     if result:
@@ -88,8 +89,43 @@ def get_comment(comment_id):
 
 @router.delete("/comments/{comment_id}")
 def delete_comment(comment_id:str, current_user= Depends(get_current_user)):
-    query="DELETE FROM comments WHERE comment_id = :comment_id AND user_id = (SELECT user_id FRON users WHERE user_name =: user_name)"
-    result=execute_query(query, {"comment_id":comment_id, "user_name":current_user["user_name"]})
+    query="DELETE FROM comments WHERE comment_id = :comment_id AND user_id = (SELECT user_id FROM users WHERE user_id =:user_id)"
+    result=execute_query(query, {"comment_id":comment_id, "user_id":current_user["user_id"]})
     if result.rowcount>0:
         return {"message": "Post deleted successfully."}
     raise HTTPException(status_code=403, detail="Forbidden")
+
+@router.get("/posts/{post_id}/comments")
+def get_post_comments(post_id: str):
+        query = """SELECT
+                comments.comment_id,
+                comments.user_id,
+                users.user_name,
+                comments.content,
+                comments.created_at,
+                COUNT(comment_likes.user_id) AS like_count
+                FROM comments
+                JOIN users ON users.user_id = comments.user_id
+                LEFT JOIN comment_likes ON comment_likes.comment_id = comments.comment_id
+                WHERE comments.post_id = :post_id
+                GROUP BY comments.comment_id, comments.user_id, users.user_name,
+                comments.content, comments.created_at
+                ORDER BY comments.created_at ASC
+                    """
+        return execute_query(query, {"post_id": post_id}).mappings().all()
+
+
+@router.get("/likes/me")
+def my_likes(current_user=Depends(get_current_user)):
+    rows = execute_query(
+        "SELECT post_id FROM likes WHERE user_id = :user_id",
+        {"user_id": current_user["user_id"]}
+        ).mappings().all()
+
+@router.get("/follows/me")
+def my_follows(current_user=Depends(get_current_user)):
+    rows = execute_query(
+        "SELECT following_user_id FROM follows WHERE follower_user_id = :user_id",
+        {"user_id": current_user["user_id"]}
+    ).mappings().all()
+    return [r["following_user_id"] for r in rows]

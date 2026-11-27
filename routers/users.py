@@ -10,8 +10,43 @@ import cloudinary.uploader
 
 router = APIRouter(prefix = "/account")
 
+@router.get("/me")
+async def me(current_user = Depends(get_current_user)):
+    return {
+            k:current_user[k] for k in ("user_id", "user_name", "display_name", "bio", "pfp_url")
+            }
+
+@router.get("/profile/{username}/posts")
+def user_posts(username: str):
+    query = """SELECT
+    posts.post_id, posts.user_id, users.user_name, users.pfp_url, posts.content, posts.created_at,
+    (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.post_id) AS like_count,
+    COALESCE((SELECT json_agg(media_url) FROM post_media
+              WHERE post_media.post_id = posts.post_id), '[]'::json) AS media_urls
+    FROM posts
+    JOIN users ON users.user_id = posts.user_id
+    WHERE users.user_name = :username
+    ORDER BY posts.created_at DESC
+    LIMIT 50
+    """
+    return execute_query(query, {"username": username}).mappings().all()
+
+@router.get("/search")
+def search_users(q: str = ""):
+    q = q.strip().lstrip("@")
+    if not q:
+        return []
+    safe = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    query = """SELECT user_name, display_name, pfp_url
+    FROM users
+    WHERE user_name ILIKE :contains OR display_name ILIKE :contains
+    ORDER BY (user_name ILIKE :prefix) DESC, user_name
+    LIMIT 20
+    """
+    return execute_query(query, {"contains": "%" + safe + "%", "prefix": safe + "%"}).mappings().all()
+
 @router.post("/register")
-def register(
+async def register(
     user_name=Form(...),
     display_name=Form(...),
     password=Form(...)):
@@ -30,7 +65,7 @@ def register(
 
     return {
             "user_id":user_id,
-            "username":username,
+            "username":user_name,
             "followers": -1,
             "following":-1
             }
@@ -80,6 +115,9 @@ async def get_profile(username):
     query = """SELECT
     user_id,
     user_name,
+    display_name,
+    bio,
+    pfp_url,
     (SELECT COUNT(*) FROM follows WHERE following_user_id=users.user_id) AS followers,
     (SELECT COUNT(*) FROM follows WHERE follower_user_id=users.user_id) AS following
     FROM users 

@@ -32,7 +32,6 @@ def create_access_token(data: dict, expires_delta: timedelta):
     return encoded_jwt
 
 def verify_access_token(token: str):
-    print(token)
     try:
         payload =jwt.decode(
                 token,
@@ -50,7 +49,7 @@ def verify_access_token(token: str):
 
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
-    print({"TOKEN":token})
+    #print({"TOKEN":token})
     query = "SELECT * FROM users WHERE user_name=:username"
     user = execute_query(query, {"username":verify_access_token(token)}).mappings().first()
     if user:

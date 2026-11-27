@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login - ze.sh</title>
+</head>
+<body>
+  <h1>Log in</h1>
+  <form id="login-form">
+    <input type="text" name="username" placeholder="Username" required>
+    <input type="password" name="password" placeholder="Password" required>
+    <button type="submit">Log in</button>
+  </form>
+  <p id="message"></p>
+  <p>No account? <a href="/register.html">Register</a></p>
+
+  <script>
+    const form = document.getElementById("login-form");
+    const message = document.getElementById("message");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      message.textContent = "";
+
+      const res = await fetch("/account/login", {
+        method: "POST",
+        body: new URLSearchParams(new FormData(form))
+      });
+      const data = await res.json();
+
+      if (data && data.access_token) {
+        localStorage.setItem("token", data.access_token);
+        window.location.href = "/index.html";
+      } else {
+        message.textContent = "Wrong username or password.";
+      }
+    });
+  </script>
+</body>
+</html>
